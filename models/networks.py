@@ -521,10 +521,18 @@ class IdentityEncoder(nn.Module):
             encoder += [ResnetBlock(ngf * mult, padding_type=padding_type, activation=activation,
                                     norm_layer=norm_layer, conv_weight_norm=conv_weight_norm)]
 
+        print(f"{ngf = } {mult = }")
+        self.translation_layer = nn.Conv2d(ngf * 16, ngf * 4, kernel_size=1, stride=1, padding=0)
+
         self.encoder = nn.Sequential(*encoder)
 
     def forward(self, input):
-        return self.encoder(input)
+        res = self.encoder(input)
+        print(f"Encoder output shape {res.shape = }")
+        res = self.translation_layer(res)
+        print(f"Translation layer output shape {res.shape = }")
+        # original encoder outputs [1, 256, 64, 64]
+        return res
 
 class AgeEncoder(nn.Module):
     def __init__(self, input_nc, ngf=64, n_downsampling=4, style_dim=50, padding_type='reflect',
@@ -654,7 +662,10 @@ class Generator(nn.Module):
                  decoder_norm='pixel', actvn='lrelu', normalize_mlp=False,
                  modulated_conv=False):
         super(Generator, self).__init__()
-        self.id_encoder = IdentityEncoder(input_nc, ngf, n_downsampling, n_blocks, id_enc_norm,
+
+        n_downsampling_id_encoder = 4
+        
+        self.id_encoder = IdentityEncoder(input_nc, ngf, n_downsampling_id_encoder, n_blocks, id_enc_norm,
                                           padding_type, conv_weight_norm=conv_weight_norm,
                                           actvn='relu') # replacing relu with leaky relu here causes nans and the entire training to collapse immediately
         self.age_encoder = AgeEncoder(input_nc, ngf=ngf, n_downsampling=4, style_dim=style_dim,
